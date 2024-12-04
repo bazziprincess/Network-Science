@@ -21,6 +21,14 @@ def clean_data(input_csv):
     data['start_station_name'] = data['start_station_name'].str.strip()
     data['end_station_name'] = data['end_station_name'].str.strip()
 
+    # Remove rows with invalid latitude and longitude (e.g., 0, 0 or out-of-range values)
+    data = data[
+        (data['start_lat'].between(-90, 90)) & 
+        (data['start_lng'].between(-180, 180)) &
+        (data['end_lat'].between(-90, 90)) & 
+        (data['end_lng'].between(-180, 180))
+    ]
+
     print(f"Total trips: {len(data)}")
     print(f"Unique start stations: {data['start_station_name'].nunique()}")
     print(f"Unique end stations: {data['end_station_name'].nunique()}")
@@ -54,10 +62,18 @@ def main():
     data = clean_data(input_csv)
     print("Data cleaning completed")
 
-    # time series analysis data
-    time_series_data = data[['start_station_name', 'end_station_name', 'start_time', 'end_time']]
-    time_series_data.to_csv('month_time_series_data.csv', index=False)
-    print("Time series data saved to time_series_data.csv")
+    # Save cleaned data for time series analysis
+    data.to_csv('cleaned_bike_data.csv', index=False)
+    print("Cleaned data saved to cleaned_bike_data.csv.")
+
+    # month data
+    month_data = data[[
+        'ride_id', 'rideable_type', 'start_station_name', 'end_station_name', 
+        'start_lat', 'start_lng', 'end_lat', 'end_lng', 
+        'start_time', 'end_time', 'start_date', 'start_hour', 'start_weekday', 'member_casual'
+    ]]
+    month_data.to_csv('month_data.csv', index=False)
+    print("Time series data saved to month_data.csv")
 
     # Create the network graph 
     build_network(data, output_gml)

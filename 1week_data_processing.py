@@ -1,26 +1,6 @@
 import pandas as pd
 import networkx as nx
 
-def clean_data(input_csv):
-    """Data cleaning: remove missing values, duplicate values, and standardize time fields"""
-    data = pd.read_csv(input_csv)
-
-    # Remove missing and duplicate values
-    data = data.dropna()
-    data = data.drop_duplicates()
-
-    # Convert to a standard time format and extract time features(date, hour, and weekday)
-    data['start_time'] = pd.to_datetime(data['started_at'])
-    data['end_time'] = pd.to_datetime(data['ended_at'])
-    data['start_date'] = data['start_time'].dt.date
-    data['start_hour'] = data['start_time'].dt.hour
-    data['start_weekday'] = data['start_time'].dt.weekday
-
-    # Clean station name
-    data['start_station_name'] = data['start_station_name'].str.strip()
-    data['end_station_name'] = data['end_station_name'].str.strip()
-
-    return data
 
 def build_network(data, output_gml):
     """Construct the network graph and save as a GML file."""
@@ -36,33 +16,37 @@ def build_network(data, output_gml):
     # save as GML file
     nx.write_gml(G, output_gml)
 
-def filter_week_data(input_csv, output_csv, start_date, end_date):
+def filter_week_data(cleaned_data, start_date, end_date):
     """Filter one week of data"""
-    data = pd.read_csv(input_csv)
+    # Convert start_date and end_date to datetime for filtering
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
 
-    # Convert time fields to datetime format
-    data['start_time'] = pd.to_datetime(data['started_at'])
-    data['end_time'] = pd.to_datetime(data['ended_at'])
+    # Filter data within the given date range
+    filtered_data = cleaned_data[
+        (cleaned_data['start_time'] >= start_date) & 
+        (cleaned_data['start_time'] < end_date)
+    ]
+    print(f"Filtered data contains {len(filtered_data)} trips from {start_date.date()} to {end_date.date()}.")
+    return filtered_data
 
-    # Filter for one week of data
-    filtered_data = data[(data['start_time'] >= start_date) & (data['start_time'] <= end_date)]
+def main(cleaned_csv='cleaned_bike_data.csv', weekly_csv='1week_data.csv', 
+         output_gml='1week_bike_network.gml', start_date='2020-04-01', end_date='2020-04-07'):
+    """
+    Main function to filter weekly data and build a network graph.
+    """
+    # Load cleaned data
+    cleaned_data = pd.read_csv(cleaned_csv, parse_dates=['start_time', 'end_time'])
 
-    # Save to a new CSV file
-    filtered_data.to_csv(output_csv, index=False)
+    # Filter data for the specified week
+    weekly_data = filter_week_data(cleaned_data, start_date, end_date)
 
-def main():
-    input_csv = '202004-divvy-tripdata.csv'
-    weekly_csv = '1week_time_series_data.csv'
-    output_gml = '1week_bike_network.gml'
-
-    # Filter one week of data
-    filter_week_data(input_csv, weekly_csv, '2020-04-01', '2020-04-07')
-    
-    # Data cleaning
-    data = clean_data(weekly_csv)
+    # Save the filtered data for future use
+    weekly_data.to_csv(weekly_csv, index=False)
+    print(f"Filtered weekly data saved to {weekly_csv}.")
 
     # Build network graph
-    build_network(data, output_gml)
+    build_network(weekly_data, output_gml)
 
 if __name__ == "__main__":
     main()
